@@ -44,6 +44,8 @@ get_meta() {
 
 META_NAME=$(get_meta "Package")
 META_VERSION=$(get_meta "Version")
+# RPM does not allow dashes in the version string
+META_VERSION="${META_VERSION//-/_}"
 META_ARCH=$(get_meta "Architecture")
 META_DESC=$(get_meta "Description")
 
