@@ -1,0 +1,152 @@
+name: PackageForge CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Stage 1: Detect Packages
+  # ──────────────────────────────────────────────
+  detect-packages:
+    name: Detect Packages
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          PACKAGES=$(ls -d packages/*/ | sed 's|packages/||;s|/||' | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix={\"package\":$PACKAGES}" >> $GITHUB_OUTPUT
+          echo "Detected packages: $PACKAGES"
+
+  # ──────────────────────────────────────────────
+  # Stage 2: Fetch & Unpack
+  # ──────────────────────────────────────────────
+  fetch-unpack:
+    name: Fetch & Unpack (${{ matrix.package }})
+    needs: detect-packages
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.detect-packages.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Fetch Artifact
+        run: bash scripts/fetch-package.sh ${{ matrix.package }}
+        
+      - name: Cache Artifacts
+        uses: actions/cache@v4
+        with:
+          path: cache/${{ matrix.package }}
+          key: cache-${{ matrix.package }}-${{ hashFiles(format('packages/{0}/upstream.sha256', matrix.package)) }}
+          
+      - name: Unpack Artifact
+        run: bash scripts/unpack-package.sh ${{ matrix.package }}
+        
+      - name: Upload Unpacked Workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: unpacked-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/unpacked
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
+  # Stage 3: Customize & Rebuild
+  # ──────────────────────────────────────────────
+  rebuild:
+    name: Rebuild ${{ matrix.package }} (${{ matrix.format }})
+    needs: [detect-packages, fetch-unpack]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.matrix).package }}
+        format: [deb, rpm]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Unpacked Workspace
+        uses: actions/download-artifact@v4
+        with:
+          name: unpacked-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/unpacked
+          
+      - name: Run Customization
+        run: bash scripts/customize-package.sh ${{ matrix.package }}
+        
+      - name: Pull KernelForge Builder Image
+        run: |
+          docker pull kernel-builder-${{ matrix.format }}:latest || echo "Warning: Image not found, rebuild script will attempt to pull it."
+        
+      - name: Rebuild Package
+        run: bash scripts/rebuild-${{ matrix.format }}.sh ${{ matrix.package }}
+        
+      - name: Upload Output Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-${{ matrix.package }}-${{ matrix.format }}
+          path: output/
+          retention-days: 1
+
+  # ──────────────────────────────────────────────
+  # Stage 4: Smoke Test
+  # ──────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test ${{ matrix.package }} (${{ matrix.format }})
+    needs: [detect-packages, rebuild]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.matrix).package }}
+        format: [deb, rpm]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Built Package
+        uses: actions/download-artifact@v4
+        with:
+          name: built-${{ matrix.package }}-${{ matrix.format }}
+          path: output
+          
+      - name: Run Smoke Test
+        run: bash scripts/smoke-test.sh ${{ matrix.package }} ${{ matrix.format }}
+
+  # ──────────────────────────────────────────────
+  # Stage 5: Sign & Publish
+  # ──────────────────────────────────────────────
+  publish:
+    name: Sign & Publish
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download All Built Packages
+        uses: actions/download-artifact@v4
+        with:
+          path: output
+          pattern: built-*
+          merge-multiple: true
+          
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          
+      - name: Sign & Build Repo
+        env:
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: bash scripts/publish-repo.sh
+        
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo
+          publish_branch: gh-pages

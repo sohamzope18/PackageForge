@@ -1,0 +1,23 @@
+# packages/htop/package.yml
+source:
+  type: apt          # apt | rpm-repo | url | git
+  name: htop
+  version: "3.3.0"
+  upstream_distro: ubuntu  # where to fetch from
+
+customize:
+  package_name: "htop-acmecorp"
+  vendor: "Acme Corp"
+  maintainer: "ops@acmecorp.com"
+  description_prefix: "[AcmeCorp Build]"
+  extra_files:
+    - src: files/acme.conf
+      dest: /etc/htop/acme.conf
+  string_replacements:
+    - old: "htop"         # only in text/control files
+      new: "htop-acmecorp"
+      scope: control_only  # control_only | all_text | explicit_files
+
+output:
+  formats: [deb, rpm]
+  epoch: 1
