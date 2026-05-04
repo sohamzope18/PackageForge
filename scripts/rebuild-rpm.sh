@@ -47,6 +47,15 @@ META_VERSION=$(get_meta "Version")
 # RPM does not allow dashes in the version string
 META_VERSION="${META_VERSION//-/_}"
 META_ARCH=$(get_meta "Architecture")
+
+# Translate Debian architectures to RPM architectures
+case "$META_ARCH" in
+    amd64) META_ARCH="x86_64" ;;
+    arm64) META_ARCH="aarch64" ;;
+    armhf) META_ARCH="armv7hl" ;;
+    all)   META_ARCH="noarch" ;;
+esac
+
 META_DESC=$(get_meta "Description")
 
 # Default fallbacks
