@@ -67,7 +67,7 @@ docker run --rm \
     -v "$STAGE_DIR:/build" \
     -v "$OUTPUT_DIR:/output" \
     "$DOCKER_IMAGE" \
-    bash -c "apt-get update -qq && apt-get install -y dpkg-dev >/dev/null && chown -R root:root /build && dpkg-deb --build /build /output/custom-${PKGNAME}.deb"
+    bash -c "apt-get update -qq && apt-get install -y dpkg-dev >/dev/null && chown -R root:root /build && dpkg-deb --build /build /output/custom-${PKGNAME}.deb && chown -R $(id -u):$(id -g) /build && chown $(id -u):$(id -g) /output/custom-${PKGNAME}.deb"
 
 echo "✅ Rebuild complete: output/custom-${PKGNAME}.deb"
 ls -la "$OUTPUT_DIR/custom-${PKGNAME}.deb"

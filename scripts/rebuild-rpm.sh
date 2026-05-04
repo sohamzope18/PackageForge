@@ -110,7 +110,8 @@ docker run --rm \
     -v "$OUTPUT_DIR:/output" \
     "$DOCKER_IMAGE" \
     bash -c "dnf install -y rpm-build >/dev/null && rpmbuild -bb /root/rpmbuild/SPECS/${META_NAME}.spec && \
-             find /root/rpmbuild/RPMS -name '*.rpm' -exec cp {} /output/ \;"
+             find /root/rpmbuild/RPMS -name '*.rpm' -exec cp {} /output/ \; && \
+             chown -R $(id -u):$(id -g) /root/rpmbuild && chown $(id -u):$(id -g) /output/*.rpm"
 
 echo "✅ Rebuild complete: Check output/ directory for RPMs"
 ls -la "$OUTPUT_DIR"/*.rpm 2>/dev/null || true
