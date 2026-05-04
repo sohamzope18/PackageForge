@@ -65,7 +65,7 @@ run_test() {
         set -euo pipefail
         
         echo '[1/4] Installing package...'
-        $install_cmd /output/custom-${PKGNAME}.${FORMAT} > /dev/null
+        $install_cmd /output/*.${FORMAT} > /dev/null
         
         echo '[2/4] Verifying package registration...'
         $verify_cmd $CUSTOM_NAME > /dev/null || { echo 'ERROR: Package not registered correctly!'; exit 1; }
