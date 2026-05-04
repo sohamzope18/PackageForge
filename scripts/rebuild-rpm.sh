@@ -28,7 +28,8 @@ echo " PackageForge Rebuild Layer (RPM)"
 echo " Package: ${PKGNAME}"
 echo "════════════════════════════════════════════"
 
-DOCKER_IMAGE="kernel-builder-rpm:latest"
+# We use standard fedora image and install rpm-build dynamically
+DOCKER_IMAGE="fedora:latest"
 
 # ── Extract Metadata ─────────────────────────────────────────
 CONTROL_FILE="${UNPACK_DIR}/meta/control"
@@ -108,7 +109,7 @@ docker run --rm \
     -v "${UNPACK_DIR}:/unpacked:ro" \
     -v "$OUTPUT_DIR:/output" \
     "$DOCKER_IMAGE" \
-    bash -c "rpmbuild -bb /root/rpmbuild/SPECS/${META_NAME}.spec && \
+    bash -c "dnf install -y rpm-build >/dev/null && rpmbuild -bb /root/rpmbuild/SPECS/${META_NAME}.spec && \
              find /root/rpmbuild/RPMS -name '*.rpm' -exec cp {} /output/ \;"
 
 echo "✅ Rebuild complete: Check output/ directory for RPMs"

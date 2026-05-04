@@ -27,8 +27,8 @@ echo " PackageForge Rebuild Layer (DEB)"
 echo " Package: ${PKGNAME}"
 echo "════════════════════════════════════════════"
 
-# We use the KernelForge debian builder image
-DOCKER_IMAGE="kernel-builder-deb:latest"
+# We use standard ubuntu image and install dpkg-dev dynamically
+DOCKER_IMAGE="ubuntu:latest"
 
 echo "==> Preparing build environment for dpkg-deb..."
 
@@ -67,7 +67,7 @@ docker run --rm \
     -v "$STAGE_DIR:/build" \
     -v "$OUTPUT_DIR:/output" \
     "$DOCKER_IMAGE" \
-    bash -c "chown -R root:root /build && dpkg-deb --build /build /output/custom-${PKGNAME}.deb"
+    bash -c "apt-get update -qq && apt-get install -y dpkg-dev >/dev/null && chown -R root:root /build && dpkg-deb --build /build /output/custom-${PKGNAME}.deb"
 
 echo "✅ Rebuild complete: output/custom-${PKGNAME}.deb"
 ls -la "$OUTPUT_DIR/custom-${PKGNAME}.deb"
