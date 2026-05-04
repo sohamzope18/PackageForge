@@ -95,7 +95,7 @@ run_test() {
 
 case "$FORMAT" in
     deb)
-        run_test "debian:bookworm" "apt-get update -qq && apt-get install -y" "dpkg -l"
+        run_test "ubuntu:latest" "apt-get update -qq && apt-get install -y" "dpkg -l"
         ;;
     rpm)
         run_test "fedora:latest" "dnf install -y" "rpm -q"

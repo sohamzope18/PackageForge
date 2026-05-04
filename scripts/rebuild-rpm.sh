@@ -102,10 +102,10 @@ ${META_DESC}
 # Copy everything from our mapped /unpacked/files to buildroot
 mkdir -p %{buildroot}
 cp -a /unpacked/files/* %{buildroot}/ 2>/dev/null || true
+find %{buildroot} -mindepth 1 \( -type f -o -type l \) | sed "s|%{buildroot}||" > %{_builddir}/file.list
 
-%files
-# Include all files dynamically
-/
+%files -f %{_builddir}/file.list
+%defattr(-,root,root,-)
 
 %changelog
 * $(date "+%a %b %d %Y") PackageForge CI - ${META_VERSION}-1
